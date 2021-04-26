@@ -16,6 +16,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::{
     convert::{Into, TryFrom, TryInto},
     time::Duration,
+    ffi::CStr,
 };
 
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
@@ -49,6 +50,10 @@ pub trait IcmpSocket {
 
     /// Receive a packet on this socket.
     fn rcv_from(&mut self) -> std::io::Result<(Self::PacketType, SockAddr)>;
+
+    #[cfg(target_os = "linux")]
+    /// Bind to specific interface
+    fn bind_device(&mut self, interface_name: Option<&CStr>) -> std::io::Result<()>;
 }
 
 /// Options for this socket.
@@ -111,6 +116,11 @@ impl IcmpSocket for IcmpSocket4 {
 
     fn set_timeout(&mut self, timeout: Duration) -> std::io::Result<()> {
         self.inner.set_read_timeout(Some(timeout))
+    }
+
+    #[cfg(target_os = "linux")]
+    fn bind_device(&mut self, interface_name: Option<&CStr>) -> std::io::Result<()> {
+        self.inner.bind_device(interface_name)
     }
 }
 
@@ -184,7 +194,13 @@ impl IcmpSocket for IcmpSocket6 {
     fn set_timeout(&mut self, timeout: Duration) -> std::io::Result<()> {
         self.inner.set_read_timeout(Some(timeout))
     }
+
+    #[cfg(target_os = "linux")]
+    fn bind_device(&mut self, interface_name: Option<&CStr>) -> std::io::Result<()> {
+        self.inner.bind_device(interface_name)
+    }
 }
+
 
 impl TryFrom<Ipv4Addr> for IcmpSocket4 {
     type Error = std::io::Error;
